@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -8,6 +9,10 @@ using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Polly;
+using Polly.Extensions.Http;
+using WebAdvert.Web.ServiceClients;
+using WebAdvert.Web.Services;
 
 namespace WebAdvert.Web
 {
@@ -25,6 +30,28 @@ namespace WebAdvert.Web
         {
             services.AddCognitoIdentity();
             services.AddControllersWithViews();
+            services.AddAutoMapper(typeof(AdvertApiProfile).Assembly);
+            services.AddTransient<IFileUploader, S3FileUploader>();
+
+            services.AddHttpClient<IAdvertApiClient, AdvertApiClient>()
+                    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+                    .AddPolicyHandler(GetRetryPolicy())
+                    .AddPolicyHandler(GetCircuitBreakerPolicy());
+
+            services.AddHttpClient<ISearchApiClient, SearchApiClient>();
+        }
+
+        private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+        {
+            return HttpPolicyExtensions.HandleTransientHttpError()
+                                       .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
+                                       .WaitAndRetryAsync(6, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+        }
+
+        private static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
+        {
+            return HttpPolicyExtensions.HandleTransientHttpError()
+                                       .CircuitBreakerAsync(5, TimeSpan.FromSeconds(30));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
