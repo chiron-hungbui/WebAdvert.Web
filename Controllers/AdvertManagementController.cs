@@ -1,5 +1,6 @@
 ﻿using AdvertAPI.Models;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -12,6 +13,7 @@ using WebAdvert.Web.Services;
 
 namespace WebAdvert.Web.Controllers
 {
+    [Authorize]
     public class AdvertManagementController : Controller
     {
         private readonly IFileUploader _fileUploader;

@@ -1,7 +1,9 @@
 ﻿using Amazon.AspNetCore.Identity.Cognito;
 using Amazon.Extensions.CognitoAuthentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,14 +17,16 @@ namespace WebAdvert.Web.Controllers
         private readonly SignInManager<CognitoUser> _signInManager;
         private readonly CognitoUserManager<CognitoUser> _userManager;
         private readonly CognitoUserPool _pool;
+        private readonly ILogger _logger;
 
         public AccountsController(SignInManager<CognitoUser> signInManager,
                                   UserManager<CognitoUser> userManager,
-                                  CognitoUserPool pool)
+                                  CognitoUserPool pool, ILogger<AccountsController> logger)
         {
             _signInManager = signInManager;
             _userManager = userManager as CognitoUserManager<CognitoUser>;
             _pool = pool;
+            _logger = logger;
         }
 
         public async Task<IActionResult> Signup()
@@ -34,22 +38,29 @@ namespace WebAdvert.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Signup(SignupModel model)
         {
-            if (ModelState.IsValid)
+            try
             {
-                var user = _pool.GetUser(model.Email);
-                if (user?.Status != null)
+                if (ModelState.IsValid)
                 {
-                    ModelState.AddModelError("UserExists", "The user with this email has been already taken!");
-                    return View(model);
-                }
+                    var user = _pool.GetUser(model.Email);
+                    if (user?.Status != null)
+                    {
+                        ModelState.AddModelError("UserExists", "The user with this email has been already taken!");
+                        return View(model);
+                    }
 
-                user.Attributes.Add(CognitoAttribute.Name.AttributeName, model.Email);
-                var result = await _userManager.CreateAsync(user, model.Password);
+                    user.Attributes.Add(CognitoAttribute.Name.AttributeName, model.Email);
+                    var result = await _userManager.CreateAsync(user, model.Password);
 
-                if (result.Succeeded)
-                {
-                    RedirectToAction("Confirm", "Accounts");
+                    if (result.Succeeded)
+                    {
+                        RedirectToAction("Confirm", "Accounts");
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error", ex);
             }
 
             return View();
@@ -63,6 +74,7 @@ namespace WebAdvert.Web.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Confirm(ConfirmModel model)
         {
             if (ModelState.IsValid)
@@ -75,13 +87,13 @@ namespace WebAdvert.Web.Controllers
                 }
 
                 var result = await _userManager.ConfirmSignUpAsync(user, model.Code, true);
-                if (result.Succeeded )
+                if (result.Succeeded)
                 {
                     return RedirectToAction("Index", "Home");
                 }
                 else
                 {
-                    foreach(var item in result.Errors)
+                    foreach (var item in result.Errors)
                     {
                         ModelState.AddModelError(item.Code, item.Description);
                     }
@@ -108,7 +120,7 @@ namespace WebAdvert.Web.Controllers
                 var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
                 if (result.Succeeded)
                 {
-                    return RedirectToAction("AdvertManagement", "Create");
+                    return RedirectToAction("Create", "AdvertManagement");
                 }
             }
 

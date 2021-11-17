@@ -1,6 +1,8 @@
 ﻿using AdvertAPI.Models;
 using AutoMapper;
+using WebAdvert.Web.Models;
 using WebAdvert.Web.Models.AdvertManagement;
+using WebAdvert.Web.Models.Home;
 
 namespace WebAdvert.Web.ServiceClients
 {
@@ -12,6 +14,9 @@ namespace WebAdvert.Web.ServiceClients
             CreateMap<CreateAdvertResponse, AdvertResponse>().ReverseMap();
             CreateMap<ConfirmAdvertRequest, ConfirmAdvertModel>().ReverseMap();
             CreateMap<CreateAdvertModel, CreateAdvertViewModel>().ReverseMap();
+            CreateMap<AdvertModel, Advertisement>().ReverseMap();
+            CreateMap<AdvertType, SearchViewModel>().ReverseMap();
+            CreateMap<IndexViewModel, Advertisement>().ReverseMap(); 
         }
     }
 }
